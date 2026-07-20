@@ -13,7 +13,7 @@ Node.js のコードは使わず、Claude Code のツール（Read / Write / Web
 |---------|--------|------|
 | Qiita | ◯ `/qiita-run` で全自動 | Account-A（すもも）／Account-B（ぷらむん）／Account-C（ひとみん）の3アカウントを運用 |
 | Web（01engineer） | ✕ 手動運用 | `Web/01engineer/` 配下の戦略・企画プロセスに沿って手動で執筆・管理 |
-| note | ✕ 手動運用（アーカイブのみ） | Qiitaで投稿した記事をnote向けに転載する運用。生成コマンドは未実装 |
+| note | △ `/note-run` で記事作成まで自動、投稿は手動 | Qiitaで投稿した記事をnote向けに転載する運用。対象記事の確定・キーワード軸のOKのみユーザー確認、note.comへの投稿自体は手動（API/CLI未対応） |
 
 ---
 
@@ -73,6 +73,7 @@ Claude Code（`claude` コマンド）を起動してスラッシュコマンド
 
 ```
 /qiita-run <アカウント> <URL>   # 指定アカウント・URLを参考に記事生成→レビュー→リライト→採点→限定公開投稿まで自動実行
+/note-run [アカウント/記事名]   # Qiita記事をnote向けに転載。対象記事確定→キーワード軸確認後、執筆〜採点まで自動実行
 ```
 
 ### スラッシュコマンド一覧
@@ -80,6 +81,7 @@ Claude Code（`claude` コマンド）を起動してスラッシュコマンド
 | コマンド | 説明 |
 |---------|------|
 | `/qiita-run <アカウント> <URL>` | 全自動：構成案確認 → 執筆 → review → rewrite → score → 限定公開投稿 |
+| `/note-run [アカウント/記事名]` | 未転載のQiita記事候補を提示 → 対象記事確定 → キーワード軸・構成案確認 → 執筆 → review → rewrite → score（投稿は手動） |
 
 ---
 
@@ -88,7 +90,8 @@ Claude Code（`claude` コマンド）を起動してスラッシュコマンド
 ```
 article-generator/
 ├── .claude/commands/
-│   └── qiita-run.md                       # /qiita-run の定義
+│   ├── qiita-run.md                       # /qiita-run の定義
+│   └── note-run.md                        # /note-run の定義
 ├── CLAUDE.md                              # 全体方針（採用フォーム流入・応募増加）
 ├── Company/
 │   └── Company.md                         # 会社情報（各メディア共通で参照）
@@ -111,8 +114,13 @@ article-generator/
 │       ├── コンテンツ管理/CategoryStructure.md, ContentMap.md
 │       └── Articles/                      # 執筆済み・執筆中記事
 ├── note/
-│   ├── Account-A/Articles/                # Qiita Account-A記事のnote転載アーカイブ
-│   └── Account-B/Articles/                # Qiita Account-B記事のnote転載アーカイブ
+│   ├── KeywordResearchProcess.md           # note化時のキーワード軸の決め方（/note-run Step 0.5で参照）
+│   ├── Account-A/
+│   │   ├── Articles/                      # Qiita Account-A記事のnote転載アーカイブ
+│   │   └── ConversionLog.md               # note化済みQiita記事の履歴（/note-runが未転載候補判定に使用）
+│   └── Account-B/
+│       ├── Articles/                      # Qiita Account-B記事のnote転載アーカイブ
+│       └── ConversionLog.md               # note化済みQiita記事の履歴（/note-runが未転載候補判定に使用）
 ├── Skills/                                # 今後のスキル追加用（現在は空）
 ├── .env                                    # QIITA_TOKEN_ACCOUNT_{A,B,C} を記載（Git管理外）
 └── .env.example                            # 環境変数サンプル
@@ -134,6 +142,24 @@ Step 6: Articles/への保存・ReferenceHistory.mdへの追記
 ```
 
 構成案の確認（Step 0.5）以降はユーザー確認を挟まず自動実行されます。詳細は `.claude/commands/qiita-run.md` を参照。
+
+---
+
+## note記事生成フロー（`/note-run`）
+
+すでに公開済みのQiita記事をベースに、note向けの記事を1本作成します（note/Account-A・Account-Bのみ対応）。
+
+```
+Step 0: 対象Qiita記事の決定（ConversionLog.mdを見て未転載候補を提示 → ユーザーが明示的に確定）
+Step 0.5: KeywordResearchProcess.mdに沿ってキーワード軸をWebSearchで調査し、構成案を提示（ユーザーOKまで待機）
+Step 1: 執筆（note向け記法への変換・タイトルH1化・header/footer挿入、note/{account}/Articles/{タイトル}.md）
+Step 2: レビュー（review.md）
+Step 3: リライト（review.mdの指摘を反映）
+Step 4: 採点（100点満点・90点以上でPASS、FAIL時は最大3回Step3へ戻る）
+Step 5: 完了報告・ConversionLog.mdへの追記
+```
+
+対象記事の確定（Step 0）とキーワード軸の確認（Step 0.5）は必ずユーザー確認を挟みます。note.comへの投稿自体はAPI/CLIが存在しないため自動化されず、完成ファイルの引き渡しまでを担当します。詳細は `.claude/commands/note-run.md` を参照。
 
 ---
 
